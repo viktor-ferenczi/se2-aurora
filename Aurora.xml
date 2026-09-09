@@ -2,13 +2,13 @@
 <PluginData xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="GitHubPlugin">
 
     <!-- The ID of your plugin, never change this -->
-    <Id>58E57089-6B0A-4456-A788-357EF93E2673</Id>
+    <Id>FE4B5355-3CA3-41CD-B7DE-4DA5AB1B5228</Id>
 
     <!-- GitHub repository ID -->
     <RepoId>todo-github-user/project-name</RepoId>
 
     <!-- The name of your plugin that will appear in the plugin list -->
-    <FriendlyName>TODO ClientPluginTemplate</FriendlyName>
+    <FriendlyName>TODO Aurora</FriendlyName>
 
     <!-- The author name that you want to appear in the plugin list -->
     <Author>TODO Author Name</Author>
