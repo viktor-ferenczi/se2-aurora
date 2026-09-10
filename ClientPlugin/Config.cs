@@ -4,17 +4,25 @@ using System.Runtime.CompilerServices;
 using System.Xml.Serialization;
 using Avalonia.Media;
 using ClientPlugin.Settings.Elements;
-using ClientPlugin.Settings.Tools;
+using Keen.VRage.Library.Mathematics;
 
 namespace ClientPlugin;
 
-public enum ExampleEnum
+public enum AuroraQuality
 {
-    FirstAlpha,
-    SecondBeta,
-    ThirdGamma,
-    AndTheDelta,
-    Epsilon,
+    Low,
+    Medium,
+    High,
+}
+
+public enum AuroraColorPreset
+{
+    GreenPurple,
+    Green,
+    RedPurple,
+    BlueTeal,
+    GreenBlue,
+    Custom,
 }
 
 public class Config : INotifyPropertyChanged
@@ -22,111 +30,253 @@ public class Config : INotifyPropertyChanged
     #region Options
 
     private bool enabled = true;
-    private bool toggle = true;
-    private int integer = 2;
-    private float number = 0.1f;
-    private string text = "Default Text";
-    private ExampleEnum dropdown = ExampleEnum.FirstAlpha;
-    private uint color = 0xFF00FFFFu;           // ARGB packed, cyan
-    private uint colorWithAlpha = 0x80CC9933u;  // ARGB packed, 50% alpha orange-ish
-    private Binding keybind = new Binding();
+    private float intensity = 0.5f;
+    private float contrast = 3f;
+    private float groundLight = 0.1f;
+    private AuroraQuality quality = AuroraQuality.High;
+    private AuroraColorPreset colorPreset = AuroraColorPreset.GreenBlue;
+    private uint bottomColor = 0xFF1EEEDDu;  // ARGB packed: (30, 238, 221)
+    private uint topColor = 0xFF8C32D2u;     // ARGB packed: (140, 50, 210)
+    private float latitudeCenter = 64f;
+    private float latitudeWidth = 24f;
+    private float magneticAxisTilt = 25f;
+    private float altitudeMin = 0.2f;
+    private float altitudeMax = 0.4f;
+    private float patternDensity = 1.8f;
+    private float coverage = 0.3f;
+    private float fadeStartFactor = 12f;
+    private float fadeEndFactor = 16f;
+    private float animationSpeed = 4.0f;
+    private bool nightOnly = true;
 
     #endregion
 
     #region User interface
 
     [XmlIgnore]
-    public readonly string Title = "Config Demo";
+    public readonly string Title = "Aurora Borealis";
 
-    [Separator("Some settings")]
+    [Separator("Aurora Borealis")]
 
-    [Checkbox(description: "Enable or disable the plugin's features")]
+    [Checkbox(description: "Master switch for the aurora effect")]
     public bool Enabled
     {
         get => enabled;
         set => SetField(ref enabled, value);
     }
 
-    [Checkbox(description: "Checkbox Tooltip")]
-    public bool Toggle
+    [Slider(0f, 1f, 0.01f, SliderAttribute.SliderType.Float, description: "HDR brightness multiplier of the aurora")]
+    public float Intensity
     {
-        get => toggle;
-        set => SetField(ref toggle, value);
+        get => intensity;
+        set => SetField(ref intensity, value);
     }
 
-    [Slider(-1f, 10f, 1f, SliderAttribute.SliderType.Integer, description: "Integer Slider Tooltip")]
-    public int Integer
+    [Slider(1f, 6f, 0.1f, SliderAttribute.SliderType.Float, description: "Separation between the bright curtain cores and the haze between them; higher is punchier, 2 is a soft look")]
+    public float Contrast
     {
-        get => integer;
-        set => SetField(ref integer, value);
+        get => contrast;
+        set => SetField(ref contrast, value);
     }
 
-    [Slider(-5f, 4.5f, 0.5f, SliderAttribute.SliderType.Float, description: "Float Slider Tooltip")]
-    public float Number
+    [Slider(0f, 1f, 0.01f, SliderAttribute.SliderType.Float, description: "Aurora light tinting the terrain below (ambient glow, most visible on snow)")]
+    public float GroundLight
     {
-        get => number;
-        set => SetField(ref number, value);
+        get => groundLight;
+        set => SetField(ref groundLight, value);
     }
 
-    [Textbox(description: "Textbox Tooltip")]
-    public string Text
+    [Dropdown(description: "Raymarching quality (number of volume samples per pixel)")]
+    public AuroraQuality Quality
     {
-        get => text;
-        set => SetField(ref text, value);
+        get => quality;
+        set => SetField(ref quality, value);
     }
 
-    [Dropdown(description: "Dropdown Tooltip")]
-    public ExampleEnum Dropdown
-    {
-        get => dropdown;
-        set => SetField(ref dropdown, value);
-    }
+    [Separator("Colors")]
 
-    [Separator("More settings")]
-
-    [XmlIgnore]
-    [Color(description: "RGB color")]
-    public Color Color
+    [Dropdown(description: "Color scheme of the vertical gradient; select Custom to use the colors below")]
+    public AuroraColorPreset ColorPreset
     {
-        get => Avalonia.Media.Color.FromUInt32(color | 0xFF000000u);
-        set => SetField(ref color, value.ToUInt32() | 0xFF000000u);
+        get => colorPreset;
+        set => SetField(ref colorPreset, value);
     }
 
     [XmlIgnore]
-    [Color(hasAlpha: true, description: "RGBA color")]
-    public Color ColorWithAlpha
+    [Color(description: "Color of the bright lower edge of the curtains (Custom preset)")]
+    public Color BottomColor
     {
-        get => Avalonia.Media.Color.FromUInt32(colorWithAlpha);
-        set => SetField(ref colorWithAlpha, value.ToUInt32());
+        get => Avalonia.Media.Color.FromUInt32(bottomColor | 0xFF000000u);
+        set => SetField(ref bottomColor, value.ToUInt32() | 0xFF000000u);
     }
 
-    [Keybind(description: "Keybind Tooltip - Unbind by right clicking the button")]
-    public Binding Keybind
+    [XmlIgnore]
+    [Color(description: "Color of the fading upper tail of the curtains (Custom preset)")]
+    public Color TopColor
     {
-        get => keybind;
-        set => SetField(ref keybind, value);
+        get => Avalonia.Media.Color.FromUInt32(topColor | 0xFF000000u);
+        set => SetField(ref topColor, value.ToUInt32() | 0xFF000000u);
     }
 
-    [Button(description: "Button Tooltip")]
-    public void Button()
+    [Separator("Placement")]
+
+    [Slider(45f, 85f, 1f, SliderAttribute.SliderType.Float, description: "Latitude of the center of the aurora band (degrees, both hemispheres)")]
+    public float LatitudeCenter
     {
-        // TODO: Put your custom button action here.
+        get => latitudeCenter;
+        set => SetField(ref latitudeCenter, value);
+    }
+
+    [Slider(4f, 48f, 1f, SliderAttribute.SliderType.Float, description: "Width of the aurora band (degrees of latitude)")]
+    public float LatitudeWidth
+    {
+        get => latitudeWidth;
+        set => SetField(ref latitudeWidth, value);
+    }
+
+    [Slider(0f, 45f, 1f, SliderAttribute.SliderType.Float, description: "Tilt of the magnetic axis from the rotation axis (degrees); tilted away from the sun, shifting the aurora toward the night side")]
+    public float MagneticAxisTilt
+    {
+        get => magneticAxisTilt;
+        set => SetField(ref magneticAxisTilt, value);
+    }
+
+    [Slider(0f, 1.0f, 0.01f, SliderAttribute.SliderType.Float, description: "Bottom of the aurora shell (0 = surface, 1 = top of atmosphere)")]
+    public float AltitudeMin
+    {
+        get => altitudeMin;
+        set => SetField(ref altitudeMin, value);
+    }
+
+    [Slider(0.05f, 1.0f, 0.01f, SliderAttribute.SliderType.Float, description: "Top of the aurora shell (0 = surface, 1 = top of atmosphere)")]
+    public float AltitudeMax
+    {
+        get => altitudeMax;
+        set => SetField(ref altitudeMax, value);
+    }
+
+    [Slider(0.25f, 4f, 0.05f, SliderAttribute.SliderType.Float, description: "How many curtains fit across the polar cap; lower is sparser with larger structures")]
+    public float PatternDensity
+    {
+        get => patternDensity;
+        set => SetField(ref patternDensity, value);
+    }
+
+    [Slider(0.05f, 1f, 0.01f, SliderAttribute.SliderType.Float, description: "Fraction of the aurora lit at any one time; lower makes patches flicker in and out at the largest scale")]
+    public float Coverage
+    {
+        get => coverage;
+        set => SetField(ref coverage, value);
+    }
+
+    [Slider(1f, 100f, 0.1f, SliderAttribute.SliderType.Float, description: "Distance from the planet where the aurora starts to fade out (multiple of the atmosphere radius)")]
+    public float FadeStartFactor
+    {
+        get => fadeStartFactor;
+        set => SetField(ref fadeStartFactor, value);
+    }
+
+    [Slider(1f, 100f, 0.1f, SliderAttribute.SliderType.Float, description: "Distance from the planet where the aurora becomes fully invisible (multiple of the atmosphere radius)")]
+    public float FadeEndFactor
+    {
+        get => fadeEndFactor;
+        set => SetField(ref fadeEndFactor, value);
+    }
+
+    [Separator("Animation")]
+
+    [Slider(0f, 12f, 0.1f, SliderAttribute.SliderType.Float, description: "Speed of the curtain movement")]
+    public float AnimationSpeed
+    {
+        get => animationSpeed;
+        set => SetField(ref animationSpeed, value);
+    }
+
+    [Checkbox(description: "Show the aurora only on the night side of the planet")]
+    public bool NightOnly
+    {
+        get => nightOnly;
+        set => SetField(ref nightOnly, value);
     }
 
     #endregion
 
     #region Serialization-only properties
 
-    public uint ColorPacked
+    // Avalonia colors are not XML serializable, these packed ARGB values are stored instead.
+    public uint BottomColorPacked
     {
-        get => color;
-        set => color = value;
+        get => bottomColor;
+        set => bottomColor = value;
     }
 
-    public uint ColorWithAlphaPacked
+    public uint TopColorPacked
     {
-        get => colorWithAlpha;
-        set => colorWithAlpha = value;
+        get => topColor;
+        set => topColor = value;
+    }
+
+    #endregion
+
+    #region Derived values
+
+    public int StepCount
+    {
+        get
+        {
+            switch (quality)
+            {
+                case AuroraQuality.Low:
+                    return 24;
+                case AuroraQuality.High:
+                    return 96;
+                default:
+                    return 48;
+            }
+        }
+    }
+
+    public void GetGradientColors(out Vector3 bottom, out Vector3 top)
+    {
+        switch (colorPreset)
+        {
+            case AuroraColorPreset.Green:
+                bottom = new Vector3(0.12f, 1f, 0.3f);
+                top = new Vector3(0f, 0.6f, 0.4f);
+                break;
+            case AuroraColorPreset.RedPurple:
+                bottom = new Vector3(1f, 0.25f, 0.3f);
+                top = new Vector3(0.6f, 0.1f, 0.8f);
+                break;
+            case AuroraColorPreset.BlueTeal:
+                bottom = new Vector3(0.15f, 0.55f, 1f);
+                top = new Vector3(0.1f, 0.9f, 0.8f);
+                break;
+            // Sampled from photographic northern lights and converted from sRGB to the
+            // linear values the LUT holds: no red at all, the bright cores a cyan-leaning
+            // green and the fading tail a cyan-blue, so the midpoint of the two lands on
+            // the pure cyan that most of such a sky is made of.
+            case AuroraColorPreset.GreenBlue:
+                bottom = new Vector3(0f, 1f, 0.40f);
+                top = new Vector3(0f, 0.27f, 1f);
+                break;
+            case AuroraColorPreset.Custom:
+                bottom = ToVector3(bottomColor);
+                top = ToVector3(topColor);
+                break;
+            default:
+                bottom = new Vector3(0.12f, 1f, 0.3f);
+                top = new Vector3(0.55f, 0.2f, 0.82f);
+                break;
+        }
+    }
+
+    private static Vector3 ToVector3(uint argb)
+    {
+        return new Vector3(
+            ((argb >> 16) & 0xFF) / 255f,
+            ((argb >> 8) & 0xFF) / 255f,
+            (argb & 0xFF) / 255f);
     }
 
     #endregion
