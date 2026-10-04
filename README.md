@@ -50,8 +50,9 @@ the same algorithm as the SE1 plugin. The integration with the game is new:
 ## Development
 
 - Build with the .NET 10 SDK, Rider or Visual Studio; the solution is `Aurora.sln`.
-  The game folder is auto-detected on Windows and Linux (Steam), override it in a
-  `Directory.Build.props.user` file next to `Directory.Build.props` if needed.
+  The game folder is auto-detected from Steam's library list. If that fails, run
+  `setup.py` to find it, or set `Game2` in a `Directory.Build.props.user` file next to
+  `Directory.Build.props`.
 - IDE builds embed the shader into the assembly and extract it on startup. Pulsar builds
   copy the `ClientPlugin/Shaders` asset folder declared in `Aurora.xml` and call
   `LoadAssets` with it instead.
@@ -61,3 +62,6 @@ the same algorithm as the SE1 plugin. The integration with the game is new:
 - To test from source, register the repository as a development folder in Pulsar's
   Sources dialog with `Aurora.xml` as the plugin file (run the `Modern` Pulsar executable
   with `-sources`), then enable the plugin in the plugin list.
+- Builds deploy nothing by default. To copy the DLL into `<Pulsar>/Modern/Local` after each
+  build, set `Pulsar` in `Directory.Build.props.user` or pass `-p:Pulsar=...`. A deployed
+  DLL shows up as a separate local plugin, so prefer the development folder.
